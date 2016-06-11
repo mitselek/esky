@@ -20,6 +20,7 @@ import shutil
 import functools
 import tempfile
 import py_compile
+import zipfile
 
 from distutils.dir_util import copy_tree # This overwrites any existing folders/files
 
@@ -107,6 +108,44 @@ def add_future_deps(dist):
             dist.includes.extend(INCLUDES_LIST)
 
 
+def name_filter_add(name):
+    if name == name.lower():
+        return name
+    else:
+        return 'zlxfc.' + name
+
+
+def name_filter_del(name):
+    return name[6:]
+
+
+def create_pyzipfile(source, target):
+    outfile = zipfile.PyZipFile(target, "w", zipfile.ZIP_DEFLATED)
+    def gen_members():
+        for (dirpath, dirnames, filenames) in os.walk(source):
+            for fn in map(name_filter_del, filenames):
+                yield os.path.join(dirpath, fn)[len(source) + 1:]
+
+    members = gen_members()
+    for fpath in members:
+        if isinstance(fpath, zipfile.ZipInfo):
+            zinfo = fpath
+            fpath = os.path.join(source, zinfo.filename)
+        else:
+            zinfo = None
+            fpath = os.path.join(source, fpath)
+        outFile.writestr(zinfo, data)
+
+        if zinfo is None:
+            outfile.write(fpath, fpath[len(source) + 1:])
+        elif isinstance(zinfo, basestring):
+            outfile.write(fpath, zinfo)
+        else:
+            with open(fpath, "rb") as f:
+                outfile.writestr(zinfo, f.read())
+    outfile.close()
+
+
 @preserve_cwd
 def freeze_future(dist_dir, optimize, **freezer_options):
     '''
@@ -144,10 +183,10 @@ def freeze_future(dist_dir, optimize, **freezer_options):
     # Todo Preserve the settings of compressing zip or not
     # merge changes we made and rezip the library
     unzipped = tempfile.mkdtemp()
-    extract_zipfile(zip_archive, unzipped)
+    extract_zipfile(zip_archive, unzipped, name_filter_add)
     os.remove(zip_archive)
     copy_tree(fixdir, unzipped)
-    create_zipfile(unzipped, zip_archive)
+    create_pyzipfile(unzipped, zip_archive)
     shutil.rmtree(fixdir)
     shutil.rmtree(unzipped)
 
