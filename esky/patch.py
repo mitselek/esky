@@ -371,20 +371,27 @@ def _write_zipfile_metadata(stream,zfin):
 
 def paths_differ(path1,path2):
     """Check whether two paths differ."""
-    if os.path.isdir(path1):
-        if not os.path.isdir(path2):
-            return True
+
+    return True if not os.path.exists(path1)
+    return True if not os.path.exists(path2)
+
+    isdir1 = os.path.isdir(path1)
+    isdir2 = os.path.isdir(path2)
+    if isdir1 != isdir2:
+        return True
+    
+    if isdir1:
         for nm in os.listdir(path1):
             if paths_differ(os.path.join(path1,nm),os.path.join(path2,nm)):
                 return True
         for nm in os.listdir(path2):
-            if not os.path.exists(os.path.join(path1,nm)):
+            if paths_differ(os.path.join(path1,nm),os.path.join(path2,nm)):
                 return True
-    elif os.path.isfile(path1):
-        if not os.path.isfile(path2):
-            return True
-        if os.stat(path1).st_size != os.stat(path2).st_size:
-            return True
+    
+    elif os.stat(path1).st_size != os.stat(path2).st_size:
+        return True
+    
+    else:
         with open(path1,"rb") as f1:
             with open(path2,"rb") as f2:
                 data1 = f1.read(1024*16)
@@ -396,11 +403,9 @@ def paths_differ(path1,path2):
                     data2 = f2.read(1024*16)
                 if data1 != data2:
                     return True
-    elif os.path.exists(path2):
-        return True
+
     return False
 
-    
 
 def calculate_digest(target,hash=hashlib.md5):
     """Calculate the digest of the given path.
